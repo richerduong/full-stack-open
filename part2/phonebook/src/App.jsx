@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import axios from 'axios';
+import personService from './services/person';
+import Persons from './components/Persons';
 
 const App = () => {
   const [persons, setPersons] = useState([]);
@@ -7,10 +8,10 @@ const App = () => {
   const [newNumber, setNewNumber] = useState('');
 
   useEffect(() => {
-    axios
-      .get('http://localhost:3001/persons')
-      .then(response => {
-        setPersons(response.data);
+    personService
+      .getAll()
+      .then(initialPersons => {
+        setPersons(initialPersons);
       })
       .catch(error => {
         console.error('Error fetching data:', error);
@@ -19,21 +20,53 @@ const App = () => {
 
   const addPerson = (event) => {
     event.preventDefault();
+    const person = persons.find(p => p.name === newName);
     const personObject = {
       name: newName,
-      number: newNumber
+      number: newNumber,
     };
+  
+    if (person) {
+      const isConfirmed = window.confirm(`${newName} is already added to the phonebook, replace the old number with a new one?`);
+      if (isConfirmed) {
+        personService
+          .update(person.id, personObject)
+          .then(returnedPerson => {
+            setPersons(persons.map(p => p.id !== person.id ? p : returnedPerson));
+          })
+          .catch(error => {
+            console.error('Error updating person:', error);
+            alert(`The information of '${newName}' has already been removed from the server`);
+            setPersons(persons.filter(p => p.id !== person.id));
+          });
+      }
+    } else {
+      personService
+        .create(personObject)
+        .then(returnedPerson => {
+          setPersons(persons.concat(returnedPerson));
+          setNewName('');
+          setNewNumber('');
+        });
+    }
+  };
 
-    axios
-      .post('http://localhost:3001/persons', personObject)
-      .then(response => {
-        setPersons(persons.concat(response.data));
-        setNewName('');
-        setNewNumber('');
-      })
-      .catch(error => {
-        console.error('Error adding person:', error);
-      });
+  const removePerson = (id) => {
+    const person = persons.find(p => p.id === id);
+    const isConfirmed = window.confirm(`Delete ${person.name}?`);
+  
+    if (isConfirmed) {
+      personService
+        .remove(id)
+        .then(() => {
+          setPersons(persons.filter(p => p.id !== id));
+        })
+        .catch(error => {
+          console.error('Error deleting person:', error);
+          alert(`The person '${person.name}' was already deleted from server`);
+          setPersons(persons.filter(p => p.id !== id));
+        });
+    }
   };
 
   const handleNameChange = (event) => {
@@ -59,13 +92,7 @@ const App = () => {
         </div>
       </form>
       <h2>Numbers</h2>
-      <ul>
-        {persons.map((person, index) => (
-          <li key={index}>
-            {person.name} {person.number}
-          </li>
-        ))}
-      </ul>
+      <Persons persons={persons} onDelete={removePerson} />
     </div>
   );
 };
