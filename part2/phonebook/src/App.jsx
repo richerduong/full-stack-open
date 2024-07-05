@@ -1,11 +1,14 @@
 import { useState, useEffect } from 'react';
 import personService from './services/person';
 import Persons from './components/Persons';
+import Notification from './components/Notification';
 
 const App = () => {
   const [persons, setPersons] = useState([]);
   const [newName, setNewName] = useState('');
   const [newNumber, setNewNumber] = useState('');
+  const [successMessage, setSuccessMessage] = useState(null);
+  const [errorMessage, setErrorMessage] = useState(null);
 
   useEffect(() => {
     personService
@@ -33,10 +36,20 @@ const App = () => {
           .update(person.id, personObject)
           .then(returnedPerson => {
             setPersons(persons.map(p => p.id !== person.id ? p : returnedPerson));
+            setSuccessMessage(`Updated ${newName}'s number`);
+            setTimeout(() => {
+              setSuccessMessage(null);
+            }, 5000);
           })
           .catch(error => {
             console.error('Error updating person:', error);
-            alert(`The information of '${newName}' has already been removed from the server`);
+            const errorMessage = error.response && error.response.data && error.response.data.error
+              ? error.response.data.error
+              : `The information of '${newName}' has already been removed from the server`;
+            setErrorMessage(errorMessage);
+            setTimeout(() => {
+              setErrorMessage(null);
+            }, 5000);
             setPersons(persons.filter(p => p.id !== person.id));
           });
       }
@@ -47,6 +60,10 @@ const App = () => {
           setPersons(persons.concat(returnedPerson));
           setNewName('');
           setNewNumber('');
+          setSuccessMessage(`Added ${newName}`);
+          setTimeout(() => {
+            setSuccessMessage(null);
+          }, 5000);
         });
     }
   };
@@ -80,6 +97,8 @@ const App = () => {
   return (
     <div>
       <h2>Phonebook</h2>
+      <Notification message={successMessage} type="success"/>
+      <Notification message={errorMessage} type="error"/>
       <form onSubmit={addPerson}>
         <div>
           name: <input value={newName} onChange={handleNameChange} />
